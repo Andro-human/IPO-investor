@@ -1,0 +1,9 @@
+[Unit]
+Description=IPO bidder: self-update from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__ROOT__
+ExecStart=__ROOT__/deploy/update.sh

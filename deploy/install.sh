@@ -32,12 +32,13 @@ mkdir -p state
 
 UNIT_DIR="$HOME/.config/systemd/user"
 mkdir -p "$UNIT_DIR"
-for job in run remind sell iplog; do
+chmod +x deploy/*.sh
+for job in run remind sell iplog update; do
   sed "s#__ROOT__#$ROOT#g" "deploy/ipo-$job.service" > "$UNIT_DIR/ipo-$job.service"
   cp "deploy/ipo-$job.timer" "$UNIT_DIR/ipo-$job.timer"
 done
 systemctl --user daemon-reload
-for job in run remind sell iplog; do
+for job in run remind sell iplog update; do
   systemctl --user enable --now "ipo-$job.timer"
 done
 # keep user services running when not logged in

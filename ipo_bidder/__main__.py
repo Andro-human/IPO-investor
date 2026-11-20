@@ -85,6 +85,7 @@ def main(argv=None):
     sub.add_parser("ip", help="print the public IP")
     sub.add_parser("status", help="show recorded applications").add_argument("--upstox", action="store_true")
     sub.add_parser("notify-test", help="send a test Telegram message")
+    sub.add_parser("notify", help="send an arbitrary Telegram message").add_argument("text")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
@@ -115,8 +116,18 @@ def main(argv=None):
         ok = ctx.tg.send(f"IPO bidder test message · {now_ist().strftime('%d %b %H:%M')} · mode {'LIVE' if ctx.live else 'DRY-RUN'}")
         print("sent" if ok else "not sent (check TELEGRAM_BOT_TOKEN and [telegram] chat_id)")
         return
-    out = {"run": job_run, "remind": job_remind, "sell": job_sell, "iplog": job_iplog}[args.cmd](ctx)
-    print(out)
+    if args.cmd == "notify":
+        print("sent" if ctx.tg.send(args.text) else "not sent")
+        return
+    job = {"run": job_run, "remind": job_remind, "sell": job_sell, "iplog": job_iplog}[args.cmd]
+    try:
+        print(job(ctx))
+    except Exception as e:  # noqa: BLE001 - report crashes to Telegram, then fail the unit
+        import traceback
+        tb = "".join(traceback.format_exception(e)).strip().splitlines()[-6:]
+        ctx.tg.send(f"IPO bidder: the '{args.cmd}' job crashed at {now_ist().strftime('%d %b %H:%M')}:\n"
+                    f"{type(e).__name__}: {e}\n\n" + "\n".join(tb) + "\n\nCheck manually today if an IPO closes.")
+        raise
 
 
 if __name__ == "__main__":
