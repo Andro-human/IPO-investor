@@ -31,7 +31,20 @@ Decision rules live in `config.toml` (`[strategy]`). Defaults: 12% GMP threshold
 8. `.venv/bin/python -m ipo_bidder run` → a dry-run decision message. Nothing is placed until
    `[general] mode = "live"`.
 
-On the Linux box: `./deploy/install.sh` installs systemd user timers for the four jobs.
+On the Linux box: `./deploy/install.sh` installs systemd user timers for the four jobs plus a self-update timer.
+
+## Updating the box
+
+The box is a git checkout of `main` (read-only deploy key) and `ipo-update.timer` runs `deploy/update.sh`
+every 5 minutes: if `origin/main` moved, it resets to it, reinstalls deps and systemd units, and posts
+"Box updated to …" on Telegram. So the workflow for any change, including config, is:
+
+```
+edit → git commit → git push        # picked up within ~5 minutes
+```
+
+`config.toml` is tracked, so edit it in git, never on the box (local edits are overwritten). Only `.env`
+(secrets) and `state/` live on the box alone. Job crashes are posted to Telegram with the traceback tail.
 
 ## Commands
 
