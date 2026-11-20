@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer: IPO bidder: listing-day sell
+
+[Timer]
+OnCalendar=Mon..Fri 10:01 Asia/Kolkata
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

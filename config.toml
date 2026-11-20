@@ -1,0 +1,24 @@
+# IPO auto-bidder configuration. Secrets live in .env, not here.
+
+[general]
+mode = "live"             # "dry-run" (decide + notify, never place orders) or "live"
+state_dir = "state"       # relative to the project root
+
+[strategy]
+budget = 105000           # rupees you keep in the UPI-linked bank account for IPOs
+threshold_pct = 12.0      # apply automatically if GMP% >= this
+penalty_below_pct = 15.0  # GMP below this gets its ranking score multiplied by `penalty`
+penalty = 0.6
+future_discount = 0.85    # ranking score multiplier for IPOs not closing today (lookahead)
+default_chance = 0.20     # assumed allotment chance when no subscription data is available
+lots = 1                  # lots per application (SEBI retail lottery: 1 lot is the efficient choice)
+gmp_disagreement_pct = 10.0   # if the two GMP sites differ by more than this many % points, skip and alert
+apply_deadline = "16:30"  # never place a bid after this time (IST); UPI mandates must be approved by 17:00
+
+[sell]
+enabled = false           # listing-day automatic market sell (needs DDPI + static IP registered at Upstox)
+policy = "always"         # "always" or "only_if_gain"
+expected_public_ip = ""   # the static IP registered at Upstox; blank = don't check
+
+[telegram]
+chat_id = "<your-chat-id>"    # run: python -m ipo_bidder chat-id

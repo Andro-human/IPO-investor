@@ -1,0 +1,12 @@
+[Unit]
+Description=IPO bidder: listing-day sell
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__ROOT__
+ExecStart=__ROOT__/.venv/bin/python -m ipo_bidder sell
+# retry once if the network or a site was flaky
+Restart=on-failure
+RestartSec=10min

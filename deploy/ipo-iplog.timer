@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer: IPO bidder: public IP log
+
+[Timer]
+OnCalendar=*-*-* 09:00 Asia/Kolkata
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

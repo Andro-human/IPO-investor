@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer: IPO bidder: mandate reminders + allotment news
+
+[Timer]
+OnCalendar=Mon..Fri 15:30 Asia/Kolkata
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
