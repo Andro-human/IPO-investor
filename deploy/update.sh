@@ -4,7 +4,7 @@
 # Local edits to tracked files (e.g. config.toml) are overwritten: change config via git, not on the box.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-git fetch -q origin main
+git fetch -q --force origin +main:refs/remotes/origin/main   # --force: follow rewritten history too
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 [ "$LOCAL" = "$REMOTE" ] && exit 0
