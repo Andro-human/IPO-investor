@@ -21,4 +21,4 @@ policy = "always"         # "always" or "only_if_gain"
 expected_public_ip = ""   # the static IP registered at Upstox; blank = don't check
 
 [telegram]
-chat_id = "<your-chat-id>"    # run: python -m ipo_bidder chat-id
+chat_id = ""              # or set TELEGRAM_CHAT_ID in .env (find it with: python -m ipo_bidder chat-id)

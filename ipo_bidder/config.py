@@ -10,7 +10,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECRET_KEYS = ("UPSTOX_API_KEY", "UPSTOX_API_SECRET", "UPSTOX_TOTP_SECRET", "UPSTOX_PIN",
-               "UPSTOX_UPI", "TELEGRAM_BOT_TOKEN")
+               "UPSTOX_UPI", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
 
 
 def load_env(path: pathlib.Path = ROOT / ".env") -> dict:

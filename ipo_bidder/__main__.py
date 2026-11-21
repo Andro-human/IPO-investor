@@ -16,7 +16,7 @@ def make_ctx(cfg, live_override=None) -> Context:
     state = State(cfg["_state_dir"])
     sec = cfg["secrets"]
     upx = Upstox(sec["UPSTOX_API_KEY"], sec["UPSTOX_TOTP_SECRET"], sec["UPSTOX_PIN"], state)
-    tg = Telegram(sec["TELEGRAM_BOT_TOKEN"], cfg.get("telegram", {}).get("chat_id", ""))
+    tg = Telegram(sec["TELEGRAM_BOT_TOKEN"], sec.get("TELEGRAM_CHAT_ID") or cfg.get("telegram", {}).get("chat_id", ""))
     live = cfg["general"].get("mode") == "live" if live_override is None else live_override
     return Context(cfg, upx, tg, state, live)
 
@@ -53,7 +53,7 @@ def cmd_chat_id(cfg, args):
     if not ids:
         print("No messages yet. Send any message to your bot in Telegram, then rerun.")
     for cid, who in ids:
-        print(f"chat_id = {cid}   ({who})  -> put this in config.toml [telegram] chat_id")
+        print(f"chat_id = {cid}   ({who})  -> put TELEGRAM_CHAT_ID={cid} in .env")
 
 
 def cmd_status(cfg, args):
