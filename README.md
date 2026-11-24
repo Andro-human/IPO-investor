@@ -46,6 +46,13 @@ edit → git commit → git push        # picked up within ~5 minutes
 `config.toml` is tracked, so edit it in git, never on the box (local edits are overwritten). Only `.env`
 (secrets) and `state/` live on the box alone. Job crashes are posted to Telegram with the traceback tail.
 
+**Only signed commits are deployed.** The box holds broker credentials, so `update.sh` runs a new commit only if
+it carries a valid SSH signature from a key in `~/.config/ipo-bidder/allowed_signers` on the box (bootstrapped
+once from `deploy/allowed_signers`, never overwritten from the repo). Anything else is refused and you get one
+Telegram alert. Commits from this repo are signed automatically (`commit.gpgsign` with the personal SSH key).
+Dependencies install only from `requirements.lock` with `--require-hashes`; regenerate it with
+`uv pip compile requirements.txt --universal --generate-hashes -o requirements.lock`.
+
 ## Commands
 
 ```
