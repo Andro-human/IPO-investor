@@ -64,6 +64,14 @@ def build_universe(ctx: Context, today: date, horizon_days=7) -> list:
             "listing": _d(tl.get("listing_date")) or bday_add(close, 3),
             "daily_end_time": d.get("daily_end_time"), "status": i.get("status"), "is_today": close == today,
         }
+        info["price_src"] = "upstox"
+        if not (info["price"] and info["lot"]):
+            # Upstox fills the price band in only a day or two before opening; borrow it from the GMP sites
+            for rows in (ig or [], iw or []):
+                m, _ = G.best_match(name, [r for r in rows if not r["is_sme"]])
+                if m and m.get("price") and m.get("lot"):
+                    info["price"], info["lot"], info["price_src"] = float(m["price"]), int(m["lot"]), m["source"]
+                    break
         info["amount"] = (info["lot"] or 0) * (info["price"] or 0) * ctx.s.get("lots", 1)
         if ig is None and iw is None:
             info["gmp"] = {"gmp": None, "gmp_pct": None, "note": "GMP sources unreachable", "values": {}}
@@ -133,7 +141,9 @@ def job_run(ctx: Context) -> str:
         if x["id"] in applied_ids:
             x["decision"] = "already applied"
         elif not x["price"] or not x["lot"]:
-            x["decision"] = "missing price/lot from Upstox"
+            x["decision"] = "price band not announced yet"
+        elif x["is_today"] and x["price_src"] != "upstox":
+            x["decision"] = "Upstox has no price for it yet, apply manually if you want it"
         elif x["gmp_pct"] is None:
             x["decision"] = f"no GMP ({x['gmp']['note']})"
         elif x["gmp_pct"] < thr:
@@ -207,7 +217,8 @@ def format_run(ctx, today, now, infos, applied, locked_today) -> str:
     if later:
         lines.append("\nClosing later:")
         for x in sorted(later, key=lambda x: x["close"]):
-            lines.append(f"• {x['name']} ({x['close'].strftime('%a %d')}) — {_gmp(x)} · {_rs(x['amount'])}/lot")
+            lot = f"{_rs(x['amount'])}/lot" if x["amount"] else "price band not announced"
+            lines.append(f"• {x['name']} ({x['close'].strftime('%a %d')}) — {_gmp(x)} · {lot}")
     return "\n".join(lines)
 
 
@@ -217,7 +228,10 @@ def _x(v):
 
 def _gmp(x):
     if x["gmp_pct"] is None:
-        return f"GMP n/a ({x['gmp']['note']})"
+        vals = x["gmp"].get("values") or {}
+        if vals and not x["price"]:
+            return f"GMP ₹{min(vals.values()):g} (no price yet for %)"
+        return f"GMP n/a ({x['gmp']['note']})" if x["gmp"].get("note") else "GMP n/a"
     note = f" ({x['gmp']['note']})" if x["gmp"].get("note") else ""
     return f"GMP {x['gmp_pct']:.1f}%{note}"
 

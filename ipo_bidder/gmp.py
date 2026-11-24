@@ -276,6 +276,9 @@ def gmp_for(name: str, price: float, ig_rows: list, iw_rows: list, max_disagree_
             return res
     res["gmp"] = min(vals.values())
     res["gmp_pct"] = round(100 * res["gmp"] / price, 2) if price else None
+    if not price:
+        res["note"] = "no price yet"
+        return res
     if len(vals) == 1:
         res["note"] = f"single source ({next(iter(vals))})"
     return res
