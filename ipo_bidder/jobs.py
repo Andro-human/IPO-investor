@@ -352,6 +352,6 @@ def job_iplog(ctx: Context) -> str:
     hist = ctx.state.read_jsonl("ip_log.jsonl")
     last = hist[-1]["ip"] if hist else None
     ctx.state.append("ip_log.jsonl", {"ip": ip})
-    if last and ip and ip != last:
+    if last and ip and ip != last and ctx.cfg.get("sell", {}).get("enabled"):  # only matters for auto-sell
         ctx.tg.send(f"Public IP changed: {last} → {ip}. If auto-sell is registered with Upstox, update the static IP there.")
     return f"public ip {ip} (previous {last})"
