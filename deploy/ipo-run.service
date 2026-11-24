@@ -2,11 +2,14 @@
 Description=IPO bidder: bid-day decision + apply
 After=network-online.target
 Wants=network-online.target
+# at most 2 retries (10 min apart) per failure, so a bad day doesn't flood Telegram
+StartLimitIntervalSec=1h
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
 WorkingDirectory=__ROOT__
 ExecStart=__ROOT__/.venv/bin/python -m ipo_bidder run
-# retry once if the network or a site was flaky
+# retry if the network or a site was flaky (capped by StartLimit* above)
 Restart=on-failure
 RestartSec=10min

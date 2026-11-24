@@ -34,6 +34,7 @@ def _safe(fn, *a, **kw):
 class Context:
     def __init__(self, cfg, upx, tg, state, live: bool):
         self.cfg, self.upx, self.tg, self.state, self.live = cfg, upx, tg, state, live
+        self.warning = None
 
     @property
     def s(self):
@@ -41,9 +42,9 @@ class Context:
 
 
 # ---------------------------------------------------------------- bid day
-def build_universe(ctx: Context, today: date, horizon_days=7) -> list:
+def build_universe(ctx: Context, today: date, horizon_days=14) -> list:
     """Open + upcoming main-board IPOs closing within the horizon, enriched with details and market data."""
-    ipos = (_safe(ctx.upx.list_ipos, "open", "regular") or []) + (_safe(ctx.upx.list_ipos, "upcoming", "regular") or [])
+    ipos = ctx.upx.list_ipos("open", "regular") + ctx.upx.list_ipos("upcoming", "regular")  # errors propagate
     universe = [i for i in ipos if _d(i.get("bidding_end_date")) and today <= _d(i["bidding_end_date"]) <= today + timedelta(days=horizon_days)]
     ig = _safe(G.fetch_investorgain, today)
     iw = _safe(G.fetch_ipowatch, today)
@@ -97,7 +98,7 @@ def build_universe(ctx: Context, today: date, horizon_days=7) -> list:
 
 def committed_funds(ctx: Context, today: date, details_cache: dict) -> tuple:
     """Returns (applied_ids, locked) where locked = [(amount, release_date)] from Upstox + dry-run records."""
-    orders = _safe(ctx.upx.ipo_orders) or []
+    orders = ctx.upx.ipo_orders()  # errors propagate: never guess an empty order book
     holdings = None
     applied_ids, locked = set(), []
     for o in orders:
@@ -112,7 +113,7 @@ def committed_funds(ctx: Context, today: date, details_cache: dict) -> tuple:
         refund = _d(tl.get("refund_initiation_date")) or (bday_add(close, 2) if close else today + timedelta(days=3))
         if st == "ipo_allotted" or o.get("order_status") == "allotted":
             if holdings is None:
-                holdings = _safe(ctx.upx.holdings) or []
+                holdings = ctx.upx.holdings()  # errors propagate
             if not any(h.get("isin") == od.get("isin") and (h.get("quantity") or 0) > 0 for h in holdings):
                 continue  # already sold: proceeds assumed back in the account
             locked.append((amt, date.max))
@@ -133,7 +134,15 @@ def committed_funds(ctx: Context, today: date, details_cache: dict) -> tuple:
 def job_run(ctx: Context) -> str:
     s, today, now = ctx.s, now_ist().date(), now_ist()
     infos = build_universe(ctx, today)
-    applied_ids, locked = committed_funds(ctx, today, {})
+    ctx.warning = None
+    try:
+        applied_ids, locked = committed_funds(ctx, today, {})
+    except Exception as e:  # noqa: BLE001
+        log.exception("could not read existing applications/holdings")
+        applied_ids, locked = set(), []
+        ctx.warning = (f"⚠️ Couldn't read your Upstox applications/holdings ({type(e).__name__}: {str(e)[:120]}). "
+                       "Funds and duplicates can't be checked, so NOTHING is applied today. "
+                       "Apply manually if you want any of the IPOs below.")
     locked_on = lambda d: sum(a for a, rel in locked if rel >= d)  # noqa: E731
     thr = s["threshold_pct"]
     cands = []
@@ -169,6 +178,9 @@ def job_run(ctx: Context) -> str:
         if too_late:
             x["decision"] = "NOT applied: past apply deadline, apply manually"
             continue
+        if ctx.warning:
+            x["decision"] = "NOT applied: Upstox order book unreadable (see warning), apply manually"
+            continue
         qty = x["lot"] * s.get("lots", 1)
         order_id = None
         if ctx.live:
@@ -198,10 +210,13 @@ def job_run(ctx: Context) -> str:
 def format_run(ctx, today, now, infos, applied, locked_today) -> str:
     s = ctx.s
     head = f"IPO bidder · {now.strftime('%a %d %b %H:%M')} · {'LIVE' if ctx.live else 'DRY-RUN'}\n"
-    head += f"Budget {_rs(s['budget'])} · locked {_rs(locked_today)} · free {_rs(s['budget'] - locked_today)}"
+    if getattr(ctx, "warning", None):
+        head += f"Budget {_rs(s['budget'])} · locked: unknown"
+    else:
+        head += f"Budget {_rs(s['budget'])} · locked {_rs(locked_today)} · free {_rs(s['budget'] - locked_today)}"
     todays = [x for x in infos if x["is_today"]]
     later = [x for x in infos if not x["is_today"]]
-    lines = [head]
+    lines = [head] + ([getattr(ctx, "warning")] if getattr(ctx, "warning", None) else [])
     if applied:
         lines.append("\nAPPLIED — approve the UPI request by 5:00 PM:" if ctx.live else "\nWOULD APPLY (dry-run):")
         for x in applied:
@@ -239,7 +254,7 @@ def _gmp(x):
 # ---------------------------------------------------------------- reminders
 def job_remind(ctx: Context) -> str:
     today = now_ist().date()
-    orders = _safe(ctx.upx.ipo_orders) or []
+    orders = ctx.upx.ipo_orders()  # errors propagate -> crash alert on Telegram
     pending = [o for o in orders if o.get("status") == "awaiting_mandate" and o.get("payment_status") != "mandate_accepted"]
     lines = []
     if pending:
@@ -273,10 +288,10 @@ def job_remind(ctx: Context) -> str:
 def job_sell(ctx: Context) -> str:
     sell_cfg = ctx.cfg.get("sell", {})
     today = now_ist().date()
-    orders = [o for o in (_safe(ctx.upx.ipo_orders) or []) if o.get("status") == "ipo_allotted" or o.get("order_status") == "allotted"]
+    orders = [o for o in ctx.upx.ipo_orders() if o.get("status") == "ipo_allotted" or o.get("order_status") == "allotted"]
     if not orders:
         return "no allotments"
-    holdings = _safe(ctx.upx.holdings) or []
+    holdings = ctx.upx.holdings()
     sold = ctx.state.read("sells.json", {})
     lines = []
     for o in orders:

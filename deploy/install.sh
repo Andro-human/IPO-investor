@@ -22,10 +22,10 @@ if [ ! -x .venv/bin/python ]; then
   fi
 fi
 if [ -x .venv/bin/pip ]; then
-  .venv/bin/pip install -q -r requirements.txt
+  .venv/bin/pip install -q --require-hashes --no-deps -r requirements.lock
 else
   export PATH="$HOME/.local/bin:$PATH"
-  uv pip install -q --python .venv/bin/python -r requirements.txt
+  uv pip install -q --python .venv/bin/python --require-hashes --no-deps -r requirements.lock
 fi
 [ -f .env ] || { cp .env.example .env; echo ">> created .env from template: fill it in, then rerun"; exit 1; }
 mkdir -p state
